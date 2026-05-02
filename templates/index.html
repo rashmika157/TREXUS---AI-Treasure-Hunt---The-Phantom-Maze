@@ -279,6 +279,18 @@
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
             font-weight: bold;
         }
+
+        .leaderboard {
+            margin-top: 30px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            text-align: left;
+        }
+        .leaderboard h3 { color: #ffd700; margin-top: 0; text-align: center; }
+        .leaderboard ol { padding-left: 20px; }
+        .leaderboard li { margin-bottom: 5px; font-size: 1.1em; }
     </style>
 </head>
 
@@ -291,6 +303,10 @@
     <div id="home" class="center-content">
         <h1>🏴‍☠️ AI Treasure Hunt</h1>
         <button onclick="startGame()">Start Game</button>
+        <div class="leaderboard" id="leaderboardBox" style="display:none;">
+            <h3>🏆 Top 5 Explorers</h3>
+            <ol id="leaderboardList"></ol>
+        </div>
     </div>
 
     <div id="game" style="display:none; position: relative; z-index: 10; height: 100vh;">
@@ -307,9 +323,6 @@
             <div>
                 <button id="clueBtn" onclick="showClue()" style="display:none; margin-bottom: 10px;">📍 Show
                     Clue</button>
-                <button id="revealBtn" onclick="confirmReveal()"
-                    style="display:none; margin-bottom: 10px; background: linear-gradient(135deg, #ff4444, #990000); color: white;">👁️
-                    Reveal Grid</button>
             </div>
             <div id="grid"></div>
         </div>
@@ -340,51 +353,24 @@
         let powerup = { r: -1, c: -1, active: false };
         let powerupTimer = 0;
         let playerMoveCount = 0;
-
-        let levels = [
-            {
-                q: "Learns from data",
-                ans: "machine learning",
-                altAns: ["ml", "machine learnings", "machine-learning"],
-                loc: "2+3=row,5-1=col",
-                pos: [5, 4],
-                hints: ["Used in Netflix", "AI subset", "Machine ___"]
-            },
-            {
-                q: "Search algo",
-                ans: "a* algorithm",
-                altAns: ["a star", "a*", "a star algorithm", "a* algo"],
-                loc: "Center",
-                pos: [2, 2],
-                hints: ["Used in maps", "Graph search", "A star"]
-            },
-            {
-                q: "Brain-inspired model",
-                ans: "neural network",
-                altAns: ["neural networks", "nn", "artificial neural network", "ann"],
-                loc: "1+0=row,3+2=col",
-                pos: [1, 5],
-                hints: ["Has layers", "Deep learning base", "Artificial ___"]
-            },
-            {
-                q: "Text generator AI",
-                ans: "chatgpt",
-                altAns: ["chat gpt", "gpt", "chat-gpt", "chat gpt-3"],
-                loc: "4+0=row,1+0=col",
-                pos: [4, 1],
-                hints: ["Made by OpenAI", "LLM", "Generative Pre-trained Transformer"]
-            },
-            {
-                q: "AI that sees",
-                ans: "computer vision",
-                altAns: ["cv", "computer visions"],
-                loc: "3+0=row,2+1=col",
-                pos: [3, 3],
-                hints: ["Used in self-driving cars", "Image processing", "Computer ___"]
-            }
-        ];
-
+        let currentLevelData = null;
         let treasure;
+
+        // Fetch Leaderboard on load
+        window.onload = async function() {
+            try {
+                let res = await fetch('/api/get_scores');
+                let scores = await res.json();
+                if(scores.length > 0) {
+                    document.getElementById("leaderboardBox").style.display = "block";
+                    let list = document.getElementById("leaderboardList");
+                    list.innerHTML = "";
+                    scores.forEach(s => {
+                        list.innerHTML += `<li><b>${s.name}</b>: ${s.score}</li>`;
+                    });
+                }
+            } catch(e) { console.error(e); }
+        };
 
         /* START */
         function startGame() {
@@ -407,9 +393,20 @@
         }
 
         /* LEVEL */
-        function loadLevel() {
-            let lvl = levels[levelIndex];
-            treasure = lvl.pos;
+        async function loadLevel() {
+            try {
+                let response = await fetch('/api/get_level?index=' + levelIndex);
+                let data = await response.json();
+                
+                if (data.completed || data.error) {
+                    showGameOverPopup("🏆 YOU WON! All levels completed.");
+                    return;
+                }
+                
+                currentLevelData = data;
+                treasure = data.pos;
+            } catch(e) { console.error("Error loading level", e); return; }
+
             hintIndex = 0;
             playerMoveCount = 0;
             playerRow = 0;
@@ -465,10 +462,9 @@
             document.getElementById("level").innerText = "Level " + (levelIndex + 1);
             document.getElementById("popupInput").value = "";
             document.getElementById("clueBtn").style.display = "none";
-            document.getElementById("revealBtn").style.display = "none";
             document.getElementById("timerBox").classList.remove("timer-danger");
 
-            showQuestion(lvl.q);
+            showQuestion(currentLevelData.q);
         }
 
         /* POPUPS */
@@ -482,7 +478,6 @@
                 createGrid();
                 startTimer();
                 document.getElementById("clueBtn").style.display = "inline-block";
-                document.getElementById("revealBtn").style.display = "inline-block";
             }, 10);
         }
 
@@ -525,7 +520,10 @@
             }
 
             if (isEnd) {
-                document.getElementById("popupBtns").innerHTML = '<button onclick="goHome()">🏠 Home</button>';
+                document.getElementById("popupInput").style.display = "inline-block";
+                document.getElementById("popupInput").value = "";
+                document.getElementById("popupInput").placeholder = "Enter your name for Leaderboard";
+                document.getElementById("popupBtns").innerHTML = `<button onclick="submitScoreAndHome()">Save & Home</button>`;
             } else if (isNextLevel) {
                 document.getElementById("popupBtns").innerHTML = '<button onclick="loadLevel()">Next Level ➡️</button>';
             } else {
@@ -537,135 +535,74 @@
             showGamePopup("⏰ Time's up!", true, true);
         }
 
-        function confirmReveal() {
-            if (score <= 0) {
-                showGamePopup("Not enough points to reveal the grid!", false, true);
-                return;
-            }
-            showGamePopup("Are you sure? This will cost ALL your points and lives!", false, true);
-            document.getElementById("popupBtns").innerHTML = '<button onclick="revealGrid()" style="background: #ff4444; color: white;">Yes, Reveal</button><button onclick="document.getElementById(\'popup\').style.display=\'none\'">Cancel</button>';
+
+        async function submitScoreAndHome() {
+            let name = document.getElementById("popupInput").value.trim() || "Anonymous";
+            try {
+                await fetch('/api/submit_score', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name: name, score: score})
+                });
+            } catch(e) { console.error(e); }
+            goHome();
         }
 
-        function revealGrid() {
-            document.getElementById('popup').style.display = 'none';
-            score = 0;
-            lives = 0;
-            document.getElementById("score").innerText = score;
-            document.getElementById("lives").innerText = lives;
-
-            // Just reveal the treasure directly, walls and enemy are already visible
-            if (enemy.r !== -1) {
-                let enemyCell = document.getElementById(enemy.r + "-" + enemy.c);
-                enemyCell.style.background = "#ff4444";
-                enemyCell.innerText = "💀";
-            }
-
-            let treasureCell = document.getElementById(treasure[0] + "-" + treasure[1]);
-            treasureCell.style.background = "#ffd700";
-            treasureCell.innerText = "⭐";
-            treasureCell.style.display = "inline-flex";
-            treasureCell.style.justifyContent = "center";
-            treasureCell.style.alignItems = "center";
-            treasureCell.style.fontSize = "24px";
-
-            document.getElementById("revealBtn").style.display = "none";
-        }
-
-        /* ANSWER (NLP Fuzzy Matching) */
-        function getLevenshteinDistance(a, b) {
-            if (a.length === 0) return b.length;
-            if (b.length === 0) return a.length;
-            var matrix = [];
-            for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
-            for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
-            for (let i = 1; i <= b.length; i++) {
-                for (let j = 1; j <= a.length; j++) {
-                    if (b.charAt(i - 1) == a.charAt(j - 1)) {
-                        matrix[i][j] = matrix[i - 1][j - 1];
-                    } else {
-                        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
-                    }
-                }
-            }
-            return matrix[b.length][a.length];
-        }
-
-        function submitAns() {
-            let lvl = levels[levelIndex];
+        /* ANSWER (NLP Fuzzy Matching from Backend) */
+        async function submitAns() {
             let userInput = document.getElementById("popupInput").value.toLowerCase().trim();
-
-            let isCorrect = false;
-
-            // Check exact match with main answer or alternative answers
-            if (userInput === lvl.ans || (lvl.altAns && lvl.altAns.includes(userInput))) {
-                isCorrect = true;
-            } else {
-                // Check fuzzy match (allow 2 typos for long words)
-                let dist = getLevenshteinDistance(userInput, lvl.ans);
-                let threshold = lvl.ans.length > 5 ? 2 : 1;
-
-                if (dist <= threshold) {
-                    isCorrect = true;
-                } else if (lvl.altAns) {
-                    // Check fuzzy against alternates too
-                    for (let alt of lvl.altAns) {
-                        let altDist = getLevenshteinDistance(userInput, alt);
-                        let altThreshold = alt.length > 5 ? 2 : 1;
-                        if (altDist <= altThreshold) {
-                            isCorrect = true;
-                            break;
-                        }
-                    }
+            
+            try {
+                let response = await fetch('/api/verify_answer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({level_index: levelIndex, answer: userInput})
+                });
+                let data = await response.json();
+                
+                if (data.correct) {
+                    showCluePopup();
+                } else {
+                    document.getElementById("popupBox").classList.remove("popup-danger");
+                    void document.getElementById("popupBox").offsetWidth; 
+                    document.getElementById("popupBox").classList.add("popup-danger");
+                    document.getElementById("popupText").innerText = "❌ Wrong Answer! (Check spelling)";
                 }
-            }
-
-            if (isCorrect) {
-                showCluePopup();
-            } else {
-                // Shake effect for wrong answer
-                document.getElementById("popupBox").classList.remove("popup-danger");
-                void document.getElementById("popupBox").offsetWidth; // trigger reflow
-                document.getElementById("popupBox").classList.add("popup-danger");
-                document.getElementById("popupText").innerText = "❌ Wrong Answer! (Check spelling)";
-            }
+            } catch(e) { console.error(e); }
         }
 
         /* Submit answer with Enter key */
         document.getElementById("popupInput").addEventListener("keypress", function (e) {
-            if (e.key === "Enter") submitAns();
+            if (e.key === "Enter") {
+                if (document.getElementById("popupInput").placeholder.includes("Leaderboard")) {
+                    submitScoreAndHome();
+                } else {
+                    submitAns();
+                }
+            }
         });
 
         /* ✅ HINT SYSTEM */
         function useHint() {
-            let lvl = levels[levelIndex];
-
             if (hintIndex < 3) {
                 document.getElementById("popupTitle").style.display = "none";
-                document.getElementById("popupText").innerText = "💡 " + lvl.hints[hintIndex];
+                document.getElementById("popupText").innerText = "💡 " + currentLevelData.hints[hintIndex];
                 hintIndex++;
             }
             else {
-                if (lives > 0) {
-                    document.getElementById("popupTitle").style.display = "none";
-                    document.getElementById("popupText").innerText = "3 hints used. Lose 1 life to reveal answer?";
-                    document.getElementById("popupInput").style.display = "none";
-                    document.getElementById("popupBtns").innerHTML = '<button onclick="revealAnswer()">Yes</button><button onclick="showQuestion(levels[levelIndex].q)">No</button>';
-                } else {
-                    document.getElementById("popupTitle").style.display = "none";
-                    document.getElementById("popupText").innerText = "❌ No lives left!";
-                    document.getElementById("popupInput").style.display = "none";
-                    document.getElementById("popupBtns").innerHTML = '<button onclick="showQuestion(levels[levelIndex].q)">Back</button>';
-                }
+                document.getElementById("popupTitle").style.display = "none";
+                document.getElementById("popupText").innerText = "❌ No hints left! Keep trying.";
+                document.getElementById("popupInput").style.display = "none";
+                document.getElementById("popupBtns").innerHTML = '<button onclick="showQuestion(currentLevelData.q)">Back</button>';
             }
         }
 
-        function revealAnswer() {
-            let lvl = levels[levelIndex];
-            lives--;
-            document.getElementById("lives").innerText = lives;
+        function showCluePopup() {
+            openPopup();
             document.getElementById("popupTitle").style.display = "none";
-            document.getElementById("popupText").innerText = "Answer: " + lvl.ans;
-            document.getElementById("popupBtns").innerHTML = '<button onclick="showCluePopup()">Continue</button>';
+            document.getElementById("popupText").innerText = "📍 " + currentLevelData.loc;
+            document.getElementById("popupInput").style.display = "none";
+            document.getElementById("popupBtns").innerHTML = '<button onclick="closePopup()">OK</button>';
         }
 
         /* GRID */
@@ -1059,7 +996,7 @@
                 clearInterval(timerInterval);
                 levelIndex++;
 
-                if (levelIndex >= levels.length) {
+                if (levelIndex >= currentLevelData.total_levels) {
                     showGamePopup("🏆 YOU WON!", true);
                 } else {
                     score += 50;
