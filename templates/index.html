@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AI Treasure Hunt</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            color: white;
+            text-align: center;
+            background: url("https://i.pinimg.com/736x/a4/a2/f8/a4a2f8ba5a7277d7fcd226d8e7620fae.jpg") no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 1;
+        }
+
+        .top-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 20000;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .top-bar h3 {
+            margin: 0;
+            font-size: 1.4em;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .center-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            position: relative;
+            z-index: 10;
+        }
+
+        #home h1 {
+            font-size: 4em;
+            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9);
+            margin-bottom: 40px;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        #timerBox {
+            background: rgba(255, 0, 0, 0.2);
+            padding: 8px 20px;
+            border-radius: 15px;
+            font-weight: bold;
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .timer-danger {
+            color: #ff4444;
+            animation: pulse-danger 0.8s infinite alternate;
+            background: rgba(255, 0, 0, 0.4) !important;
+        }
+
+        @keyframes pulse-danger {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 rgba(255, 0, 0, 0);
+            }
+
+            100% {
+                transform: scale(1.1);
+                box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+            }
+        }
+
+        #grid {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            margin-top: 10px;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: inline-block;
+            margin: 5px;
+            border-radius: 12px;
+            background: #4a3b2c;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .wall {
+            background: #2a2a2a !important;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+            border: 2px solid #111;
+        }
+
+        .enemy {
+            background: linear-gradient(135deg, #ff4444, #990000) !important;
+            box-shadow: 0 0 20px #ff4444, inset 0 0 10px rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            z-index: 15;
+            position: relative;
+        }
+
+        .player {
+            background: linear-gradient(135deg, #ffd700, #ff8c00) !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #ffd700, inset 0 0 10px rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            z-index: 20;
+            position: relative;
+        }
+
+        .global-home-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 30000;
+            display: none;
+            background: linear-gradient(135deg, #333, #111);
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+        }
+
+        .global-home-btn:hover {
+            background: linear-gradient(135deg, #444, #222);
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #ffd700, #ffb300);
+            color: #333;
+            font-weight: 900;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+            font-family: 'Nunito', sans-serif;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.5);
+        }
+
+        button:active {
+            transform: translateY(1px) scale(0.95);
+        }
+
+        /* POPUP STYLES */
+        #popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .popup-box {
+            background: linear-gradient(145deg, #1f1f1f, #111);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #ffd700;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: translateY(20px) scale(0.9);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .popup-danger {
+            border: 2px solid #ff4444;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            50% {
+                transform: translateX(10px);
+            }
+
+            75% {
+                transform: translateX(-10px);
+            }
+        }
+
+        #popupInput {
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 2px solid #555;
+            background: #222;
+            color: white;
+            font-size: 1.1em;
+            outline: none;
+            text-align: center;
+            width: 80%;
+            transition: all 0.3s ease;
+            font-family: 'Nunito', sans-serif;
+            margin-bottom: 15px;
+        }
+
+        #popupInput:focus {
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+            background: #333;
+        }
+
+        #level {
+            font-size: 2.5em;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+            margin-top: 80px;
+            margin-bottom: 10px;
+            color: #ffd700;
+        }
+
+        #result {
+            font-size: 1.3em;
+            min-height: 30px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="overlay"></div>
+
+    <button id="globalHomeBtn" class="global-home-btn" onclick="goHome()">🏠 Home</button>
+
+    <div id="home" class="center-content">
+        <h1>🏴‍☠️ AI Treasure Hunt</h1>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <div id="game" style="display:none; position: relative; z-index: 10; height: 100vh;">
+
+        <div class="top-bar">
+            <h3>⭐ <span id="score">100</span></h3>
+            <h3>❤️ <span id="lives">2</span></h3>
+            <h3 id="timerBox">⏱️ <span id="timer">30</span></h3>
+        </div>
+
+        <div class="center-content">
+            <h2 id="level"></h2>
+            <p id="result"></p>
+            <div>
+                <button id="clueBtn" onclick="showClue()" style="display:none; margin-bottom: 10px;">📍 Show
+                    Clue</button>
+                <button id="revealBtn" onclick="confirmReveal()"
+                    style="display:none; margin-bottom: 10px; background: linear-gradient(135deg, #ff4444, #990000); color: white;">👁️
+                    Reveal Grid</button>
+            </div>
+            <div id="grid"></div>
+        </div>
+
+    </div>
+
+    <div id="popup" style="display:none;">
+        <div class="popup-box" id="popupBox">
+            <h3 id="popupTitle" style="color: #ffd700; margin-top: 0; font-size: 1.2em; display: none;">Answer this
+                question to get location clue</h3>
+            <p id="popupText" style="font-size: 1.4em; font-weight: bold; margin-bottom: 20px; white-space: pre-wrap;">
+            </p>
+            <input id="popupInput" autocomplete="off" placeholder="Enter answer here...">
+            <br>
+            <div id="popupBtns"></div>
+        </div>
+    </div>
+
+    <script>
+
+        let levelIndex = 0, score = 100, lives = 2;
+        let playerRow = 0, playerCol = 0;
+        let timer = 30, timerInterval;
+        let hintIndex = 0;
+        let walls = [];
+        let enemy = { r: -1, c: -1 };
+        let enemyState = "PATROL"; // PATROL, CHASE, FLEE
+        let powerup = { r: -1, c: -1, active: false };
+        let powerupTimer = 0;
+        let playerMoveCount = 0;
+
+        let levels = [
+            {
+                q: "Learns from data",
+                ans: "machine learning",
+                altAns: ["ml", "machine learnings", "machine-learning"],
+                loc: "2+3=row,5-1=col",
+                pos: [5, 4],
+                hints: ["Used in Netflix", "AI subset", "Machine ___"]
+            },
+            {
+                q: "Search algo",
+                ans: "a* algorithm",
+                altAns: ["a star", "a*", "a star algorithm", "a* algo"],
+                loc: "Center",
+                pos: [2, 2],
+                hints: ["Used in maps", "Graph search", "A star"]
+            },
+            {
+                q: "Brain-inspired model",
+                ans: "neural network",
+                altAns: ["neural networks", "nn", "artificial neural network", "ann"],
+                loc: "1+0=row,3+2=col",
+                pos: [1, 5],
+                hints: ["Has layers", "Deep learning base", "Artificial ___"]
+            },
+            {
+                q: "Text generator AI",
+                ans: "chatgpt",
+                altAns: ["chat gpt", "gpt", "chat-gpt", "chat gpt-3"],
+                loc: "4+0=row,1+0=col",
+                pos: [4, 1],
+                hints: ["Made by OpenAI", "LLM", "Generative Pre-trained Transformer"]
+            },
+            {
+                q: "AI that sees",
+                ans: "computer vision",
+                altAns: ["cv", "computer visions"],
+                loc: "3+0=row,2+1=col",
+                pos: [3, 3],
+                hints: ["Used in self-driving cars", "Image processing", "Computer ___"]
+            }
+        ];
+
+        let treasure;
+
+        /* START */
+        function startGame() {
+            document.getElementById("home").style.display = "none";
+            document.getElementById("game").style.display = "block";
+            document.getElementById("globalHomeBtn").style.display = "block";
+            showInstructions();
+        }
+
+        function showInstructions() {
+            openPopup();
+            document.getElementById("popupTitle").style.display = "none";
+            document.getElementById("popupText").innerText = "HOW TO PLAY\n\n1. Answer the question to receive a location clue.\n2. Navigate your player to that exact location on the grid.\n3. Press Enter to submit your location.\n4. Avoid hidden dangers!\n\nGood luck!";
+            document.getElementById("popupInput").style.display = "none";
+            document.getElementById("popupBtns").innerHTML = '<button onclick="loadLevel()">Play Now</button>';
+        }
+
+        function goHome() {
+            location.reload();
+        }
+
+        /* LEVEL */
+        function loadLevel() {
+            let lvl = levels[levelIndex];
+            treasure = lvl.pos;
+            hintIndex = 0;
+            playerMoveCount = 0;
+            playerRow = 0;
+            playerCol = 0;
+
+            // Generate Walls (Obstacles) ensuring valid path exists
+            let validMaze = false;
+            while (!validMaze) {
+                walls = [];
+                for (let k = 0; k < 8; k++) { // Add ~8 random walls
+                    let w = [Math.floor(Math.random() * 6), Math.floor(Math.random() * 6)];
+                    // Prevent walls on player start, treasure, or duplicate walls
+                    if ((w[0] === 0 && w[1] === 0) ||
+                        (w[0] === treasure[0] && w[1] === treasure[1]) ||
+                        walls.some(existing => existing[0] === w[0] && existing[1] === w[1])) {
+                        continue; // skip this iteration if invalid placement
+                    }
+                    walls.push(w);
+                }
+
+                // Validate if path exists
+                let dist = getAStarDistance(0, 0, treasure[0], treasure[1], walls);
+                if (dist !== 999) {
+                    validMaze = true;
+                }
+            }
+
+            // Spawn Enemy far away from player
+            do {
+                enemy.r = Math.floor(Math.random() * 6);
+                enemy.c = Math.floor(Math.random() * 6);
+            } while (
+                (enemy.r === 0 && enemy.c === 0) || // not on player
+                (enemy.r === treasure[0] && enemy.c === treasure[1]) || // not on treasure
+                walls.some(w => w[0] === enemy.r && w[1] === enemy.c) || // not in wall
+                (Math.abs(enemy.r - 0) + Math.abs(enemy.c - 0) < 3) // distance > 2 from player
+            );
+
+            powerupTimer = 0;
+            enemyState = "PATROL";
+            powerup.active = true;
+            // Spawn Powerup
+            do {
+                powerup.r = Math.floor(Math.random() * 6);
+                powerup.c = Math.floor(Math.random() * 6);
+            } while (
+                (powerup.r === 0 && powerup.c === 0) ||
+                (powerup.r === treasure[0] && powerup.c === treasure[1]) ||
+                (powerup.r === enemy.r && powerup.c === enemy.c) ||
+                walls.some(w => w[0] === powerup.r && w[1] === powerup.c)
+            );
+
+            document.getElementById("level").innerText = "Level " + (levelIndex + 1);
+            document.getElementById("popupInput").value = "";
+            document.getElementById("clueBtn").style.display = "none";
+            document.getElementById("revealBtn").style.display = "none";
+            document.getElementById("timerBox").classList.remove("timer-danger");
+
+            showQuestion(lvl.q);
+        }
+
+        /* POPUPS */
+        function openPopup() {
+            document.getElementById("popup").style.display = "flex";
+        }
+
+        function closePopup() {
+            document.getElementById("popup").style.display = "none";
+            setTimeout(() => {
+                createGrid();
+                startTimer();
+                document.getElementById("clueBtn").style.display = "inline-block";
+                document.getElementById("revealBtn").style.display = "inline-block";
+            }, 10);
+        }
+
+        function showQuestion(q) {
+            openPopup();
+            document.getElementById("popupTitle").style.display = "block";
+            document.getElementById("popupText").innerText = q;
+            document.getElementById("popupInput").style.display = "inline-block";
+
+            // Clear input and focus
+            document.getElementById("popupInput").value = "";
+            setTimeout(() => document.getElementById("popupInput").focus(), 300);
+
+            document.getElementById("popupBox").classList.remove("popup-danger");
+
+            document.getElementById("popupBtns").innerHTML =
+                '<button onclick="submitAns()">Submit</button><button onclick="useHint()">💡 Hint</button>';
+        }
+
+        function showCluePopup() {
+            let lvl = levels[levelIndex];
+            openPopup();
+            document.getElementById("popupTitle").style.display = "none";
+            document.getElementById("popupText").innerText = "📍 " + lvl.loc;
+            document.getElementById("popupInput").style.display = "none";
+            document.getElementById("popupBtns").innerHTML = '<button onclick="closePopup()">OK</button>';
+        }
+
+        function showGamePopup(message, isEnd = false, isDanger = false, isNextLevel = false) {
+            openPopup();
+            document.getElementById("popupTitle").style.display = "none";
+            document.getElementById("popupText").innerText = message;
+            document.getElementById("popupInput").style.display = "none";
+
+            let box = document.getElementById("popupBox");
+            box.classList.remove("popup-danger");
+
+            if (isDanger) {
+                box.classList.add("popup-danger");
+            }
+
+            if (isEnd) {
+                document.getElementById("popupBtns").innerHTML = '<button onclick="goHome()">🏠 Home</button>';
+            } else if (isNextLevel) {
+                document.getElementById("popupBtns").innerHTML = '<button onclick="loadLevel()">Next Level ➡️</button>';
+            } else {
+                document.getElementById("popupBtns").innerHTML = '<button onclick="document.getElementById(\'popup\').style.display=\'none\'">OK</button>';
+            }
+        }
+
+        function showTimeUp() {
+            showGamePopup("⏰ Time's up!", true, true);
+        }
+
+        function confirmReveal() {
+            if (score <= 0) {
+                showGamePopup("Not enough points to reveal the grid!", false, true);
+                return;
+            }
+            showGamePopup("Are you sure? This will cost ALL your points and lives!", false, true);
+            document.getElementById("popupBtns").innerHTML = '<button onclick="revealGrid()" style="background: #ff4444; color: white;">Yes, Reveal</button><button onclick="document.getElementById(\'popup\').style.display=\'none\'">Cancel</button>';
+        }
+
+        function revealGrid() {
+            document.getElementById('popup').style.display = 'none';
+            score = 0;
+            lives = 0;
+            document.getElementById("score").innerText = score;
+            document.getElementById("lives").innerText = lives;
+
+            // Just reveal the treasure directly, walls and enemy are already visible
+            if (enemy.r !== -1) {
+                let enemyCell = document.getElementById(enemy.r + "-" + enemy.c);
+                enemyCell.style.background = "#ff4444";
+                enemyCell.innerText = "💀";
+            }
+
+            let treasureCell = document.getElementById(treasure[0] + "-" + treasure[1]);
+            treasureCell.style.background = "#ffd700";
+            treasureCell.innerText = "⭐";
+            treasureCell.style.display = "inline-flex";
+            treasureCell.style.justifyContent = "center";
+            treasureCell.style.alignItems = "center";
+            treasureCell.style.fontSize = "24px";
+
+            document.getElementById("revealBtn").style.display = "none";
+        }
+
+        /* ANSWER (NLP Fuzzy Matching) */
+        function getLevenshteinDistance(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            var matrix = [];
+            for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+            for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) == a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        function submitAns() {
+            let lvl = levels[levelIndex];
+            let userInput = document.getElementById("popupInput").value.toLowerCase().trim();
+
+            let isCorrect = false;
+
+            // Check exact match with main answer or alternative answers
+            if (userInput === lvl.ans || (lvl.altAns && lvl.altAns.includes(userInput))) {
+                isCorrect = true;
+            } else {
+                // Check fuzzy match (allow 2 typos for long words)
+                let dist = getLevenshteinDistance(userInput, lvl.ans);
+                let threshold = lvl.ans.length > 5 ? 2 : 1;
+
+                if (dist <= threshold) {
+                    isCorrect = true;
+                } else if (lvl.altAns) {
+                    // Check fuzzy against alternates too
+                    for (let alt of lvl.altAns) {
+                        let altDist = getLevenshteinDistance(userInput, alt);
+                        let altThreshold = alt.length > 5 ? 2 : 1;
+                        if (altDist <= altThreshold) {
+                            isCorrect = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (isCorrect) {
+                showCluePopup();
+            } else {
+                // Shake effect for wrong answer
+                document.getElementById("popupBox").classList.remove("popup-danger");
+                void document.getElementById("popupBox").offsetWidth; // trigger reflow
+                document.getElementById("popupBox").classList.add("popup-danger");
+                document.getElementById("popupText").innerText = "❌ Wrong Answer! (Check spelling)";
+            }
+        }
+
+        /* Submit answer with Enter key */
+        document.getElementById("popupInput").addEventListener("keypress", function (e) {
+            if (e.key === "Enter") submitAns();
+        });
+
+        /* ✅ HINT SYSTEM */
+        function useHint() {
+            let lvl = levels[levelIndex];
+
+            if (hintIndex < 3) {
+                document.getElementById("popupTitle").style.display = "none";
+                document.getElementById("popupText").innerText = "💡 " + lvl.hints[hintIndex];
+                hintIndex++;
+            }
+            else {
+                if (lives > 0) {
+                    document.getElementById("popupTitle").style.display = "none";
+                    document.getElementById("popupText").innerText = "3 hints used. Lose 1 life to reveal answer?";
+                    document.getElementById("popupInput").style.display = "none";
+                    document.getElementById("popupBtns").innerHTML = '<button onclick="revealAnswer()">Yes</button><button onclick="showQuestion(levels[levelIndex].q)">No</button>';
+                } else {
+                    document.getElementById("popupTitle").style.display = "none";
+                    document.getElementById("popupText").innerText = "❌ No lives left!";
+                    document.getElementById("popupInput").style.display = "none";
+                    document.getElementById("popupBtns").innerHTML = '<button onclick="showQuestion(levels[levelIndex].q)">Back</button>';
+                }
+            }
+        }
+
+        function revealAnswer() {
+            let lvl = levels[levelIndex];
+            lives--;
+            document.getElementById("lives").innerText = lives;
+            document.getElementById("popupTitle").style.display = "none";
+            document.getElementById("popupText").innerText = "Answer: " + lvl.ans;
+            document.getElementById("popupBtns").innerHTML = '<button onclick="showCluePopup()">Continue</button>';
+        }
+
+        /* GRID */
+        function createGrid() {
+            let grid = document.getElementById("grid");
+            grid.innerHTML = "";
+            playerRow = 0; playerCol = 0;
+
+            for (let i = 0; i < 6; i++) {
+                let row = document.createElement("div");
+                for (let j = 0; j < 6; j++) {
+                    let cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.id = i + "-" + j;
+                    row.appendChild(cell);
+                }
+                grid.appendChild(row);
+            }
+            updatePlayer();
+        }
+
+        /* TIMER */
+        function startTimer() {
+            timer = 30;
+
+            const timerText = document.getElementById("timer");
+            const timerBox = document.getElementById("timerBox");
+
+            timerText.innerText = timer;
+            timerBox.classList.remove("timer-danger");
+
+            clearInterval(timerInterval);
+
+            timerInterval = setInterval(() => {
+                timer--;
+                timerText.innerText = timer;
+
+                if (timer <= 5) {
+                    timerBox.classList.add("timer-danger");
+                }
+
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    timerText.innerText = 0;
+                    showTimeUp();
+                }
+            }, 1000);
+        }
+
+        /* MOVEMENT */
+        function updatePlayer() {
+            // Reset all cells
+            document.querySelectorAll(".cell").forEach(c => {
+                c.className = "cell";
+                c.innerText = "";
+                c.style.background = ""; // Clear inline styles
+            });
+
+            // Draw walls
+            walls.forEach(w => {
+                let cell = document.getElementById(w[0] + "-" + w[1]);
+                if (cell) cell.classList.add("wall");
+            });
+
+            // Draw powerup
+            if (powerup.active && powerup.r !== -1) {
+                let pCell = document.getElementById(powerup.r + "-" + powerup.c);
+                if (pCell) {
+                    pCell.innerText = "🏮";
+                    pCell.style.display = "inline-flex";
+                    pCell.style.justifyContent = "center";
+                    pCell.style.alignItems = "center";
+                    pCell.style.fontSize = "28px";
+                    pCell.style.background = "radial-gradient(circle, #ffeb3b, transparent)";
+                }
+            }
+
+            // Draw enemy
+            if (enemy.r !== -1 && enemy.c !== -1) {
+                let enemyCell = document.getElementById(enemy.r + "-" + enemy.c);
+                if (enemyCell) {
+                    enemyCell.classList.add("enemy");
+
+                    if (enemyState === "FLEE") {
+                        enemyCell.innerText = "😱";
+                        enemyCell.style.background = "linear-gradient(135deg, #3498db, #2980b9)";
+                        enemyCell.style.boxShadow = "0 0 20px #3498db";
+                    } else if (enemyState === "CHASE") {
+                        enemyCell.innerText = "👹";
+                    } else {
+                        enemyCell.innerText = "👻";
+                    }
+
+                    enemyCell.style.display = "inline-flex";
+                    enemyCell.style.justifyContent = "center";
+                    enemyCell.style.alignItems = "center";
+                    enemyCell.style.fontSize = "28px";
+                }
+            }
+
+            // Draw player
+            let playerCell = document.getElementById(playerRow + "-" + playerCol);
+            if (playerCell) {
+                playerCell.classList.add("player");
+            }
+
+            let resultEl = document.getElementById("result");
+            resultEl.style.color = "white";
+
+            // Collision check: Powerup
+            if (powerup.active && playerRow === powerup.r && playerCol === powerup.c) {
+                powerup.active = false;
+                powerupTimer = 10; // Flee state lasts for 10 steps
+                score += 20;
+                document.getElementById("score").innerText = score;
+                showGamePopup("🏮 You got the Ghost Lantern! The Ghost is scared!", false, false);
+            }
+
+            // Collision check: Enemy
+            if (playerRow === enemy.r && playerCol === enemy.c) {
+                if (enemyState === "FLEE") {
+                    score += 50;
+                    document.getElementById("score").innerText = score;
+                    showGamePopup("✨ You banished the Ghost Pirate! +50 points", false, false);
+                    enemy.r = -1; // Remove enemy from board
+                    enemy.c = -1;
+                } else {
+                    score = Math.max(0, score - 50);
+                    document.getElementById("score").innerText = score;
+                    showGamePopup("👻 The Ghost Pirate caught you! -50 points", false, true);
+
+                    // Respawn enemy far away
+                    do {
+                        enemy.r = Math.floor(Math.random() * 6);
+                        enemy.c = Math.floor(Math.random() * 6);
+                    } while (
+                        (enemy.r === playerRow && enemy.c === playerCol) ||
+                        (enemy.r === treasure[0] && enemy.c === treasure[1]) ||
+                        walls.some(w => w[0] === enemy.r && w[1] === enemy.c) ||
+                        (Math.abs(enemy.r - playerRow) + Math.abs(enemy.c - playerCol) < 3)
+                    );
+
+                    // Redraw to place enemy at new location
+                    updatePlayer();
+                    return;
+                }
+            }
+
+            let distTreasure = getAStarDistance(playerRow, playerCol, treasure[0], treasure[1], walls);
+            let distEnemy = enemy.r !== -1 ? getAStarDistance(playerRow, playerCol, enemy.r, enemy.c, walls) : 999;
+
+            if (powerupTimer > 0) {
+                resultEl.innerText = `🏮 Power active! Ghost fleeing (${powerupTimer} steps left)`;
+                resultEl.style.color = "#ffeb3b";
+            } else if (distEnemy <= 2 && distEnemy !== 999) {
+                resultEl.innerText = "⚠️ The Ghost is chasing!";
+                resultEl.style.color = "#ff4444";
+            } else if (distTreasure <= 3 && distTreasure !== 999) {
+                resultEl.innerText = "✨ Very Close to treasure...";
+                resultEl.style.color = "#ffd700";
+            } else {
+                resultEl.innerText = "❄️ Keep searching...";
+            }
+        }
+
+        /* A* PATHFINDING ALGORITHM */
+        function getAStarDistance(startR, startC, endR, endC, hazards) {
+            let openSet = [{ r: startR, c: startC, g: 0, f: 0 }];
+            let closedSet = new Set();
+
+            function heuristic(r, c) {
+                return Math.abs(r - endR) + Math.abs(c - endC);
+            }
+
+            function isDanger(r, c) {
+                return hazards.some(d => d[0] === r && d[1] === c);
+            }
+
+            while (openSet.length > 0) {
+                openSet.sort((a, b) => a.f - b.f);
+                let current = openSet.shift();
+
+                if (current.r === endR && current.c === endC) {
+                    return current.g;
+                }
+
+                let currentKey = current.r + "," + current.c;
+                closedSet.add(currentKey);
+
+                let neighbors = [
+                    { r: current.r - 1, c: current.c },
+                    { r: current.r + 1, c: current.c },
+                    { r: current.r, c: current.c - 1 },
+                    { r: current.r, c: current.c + 1 }
+                ];
+
+                for (let n of neighbors) {
+                    if (n.r < 0 || n.r > 5 || n.c < 0 || n.c > 5) continue;
+                    if (isDanger(n.r, n.c)) continue;
+
+                    let key = n.r + "," + n.c;
+                    if (closedSet.has(key)) continue;
+
+                    let tentative_g = current.g + 1;
+
+                    let existing = openSet.find(o => o.r === n.r && o.c === n.c);
+                    if (!existing) {
+                        openSet.push({ r: n.r, c: n.c, g: tentative_g, f: tentative_g + heuristic(n.r, n.c) });
+                    } else if (tentative_g < existing.g) {
+                        existing.g = tentative_g;
+                        existing.f = tentative_g + heuristic(n.r, n.c);
+                    }
+                }
+            }
+            return 999; // No path found or blocked
+        }
+
+        function getNextEnemyMove(startR, startC, targetR, targetC, hazards) {
+            let openSet = [{ r: startR, c: startC, g: 0, f: 0, parent: null }];
+            let closedSet = new Set();
+
+            function heuristic(r, c) {
+                return Math.abs(r - targetR) + Math.abs(c - targetC);
+            }
+
+            function isDanger(r, c) {
+                return hazards.some(d => d[0] === r && d[1] === c);
+            }
+
+            let finalNode = null;
+
+            while (openSet.length > 0) {
+                openSet.sort((a, b) => a.f - b.f);
+                let current = openSet.shift();
+
+                if (current.r === targetR && current.c === targetC) {
+                    finalNode = current;
+                    break;
+                }
+
+                let currentKey = current.r + "," + current.c;
+                closedSet.add(currentKey);
+
+                let neighbors = [
+                    { r: current.r - 1, c: current.c },
+                    { r: current.r + 1, c: current.c },
+                    { r: current.r, c: current.c - 1 },
+                    { r: current.r, c: current.c + 1 }
+                ];
+
+                for (let n of neighbors) {
+                    if (n.r < 0 || n.r > 5 || n.c < 0 || n.c > 5) continue;
+                    if (isDanger(n.r, n.c)) continue;
+
+                    let key = n.r + "," + n.c;
+                    if (closedSet.has(key)) continue;
+
+                    let tentative_g = current.g + 1;
+
+                    let existing = openSet.find(o => o.r === n.r && o.c === n.c);
+                    if (!existing) {
+                        openSet.push({ r: n.r, c: n.c, g: tentative_g, f: tentative_g + heuristic(n.r, n.c), parent: current });
+                    } else if (tentative_g < existing.g) {
+                        existing.g = tentative_g;
+                        existing.f = tentative_g + heuristic(n.r, n.c);
+                        existing.parent = current;
+                    }
+                }
+            }
+
+            if (!finalNode) return null; // No path
+
+            // Trace back to find the first step
+            let step = finalNode;
+            while (step.parent && step.parent.parent !== null) {
+                step = step.parent;
+            }
+            return { r: step.r, c: step.c };
+        }
+
+        /* MOVEMENT EVENT LISTENER */
+        document.addEventListener("keydown", function (e) {
+
+            // Prevent scrolling with arrows
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.key) > -1) {
+                e.preventDefault();
+            }
+
+            // Don't move if popup is open
+            if (document.getElementById("popup").style.display === "flex") return;
+
+            let prevDist = getAStarDistance(playerRow, playerCol, treasure[0], treasure[1], walls);
+            let moved = false;
+
+            let nextR = playerRow;
+            let nextC = playerCol;
+
+            if (e.key === "ArrowUp" && playerRow > 0) nextR--;
+            if (e.key === "ArrowDown" && playerRow < 5) nextR++;
+            if (e.key === "ArrowLeft" && playerCol > 0) nextC--;
+            if (e.key === "ArrowRight" && playerCol < 5) nextC++;
+
+            if (nextR !== playerRow || nextC !== playerCol) {
+                // Check if target cell is a wall
+                if (!walls.some(w => w[0] === nextR && w[1] === nextC)) {
+                    playerRow = nextR;
+                    playerCol = nextC;
+                    moved = true;
+                    playerMoveCount++;
+                }
+            }
+
+            if (moved) {
+                let currentDist = getAStarDistance(playerRow, playerCol, treasure[0], treasure[1], walls);
+                let scoreEl = document.getElementById("score");
+
+                if (currentDist < prevDist) {
+                    score -= 2; // Optimal step cost
+                    scoreEl.style.color = "#ffd700"; // flash gold
+                } else {
+                    score -= 10; // Suboptimal step penalty
+                    scoreEl.style.color = "#ff4444"; // flash red
+                }
+                score = Math.max(0, score);
+
+                scoreEl.innerText = score;
+                setTimeout(() => { scoreEl.style.color = ""; }, 300);
+
+                if (powerupTimer > 0) {
+                    powerupTimer--;
+                }
+
+                // Ghost FSM Brain (acts every 2 moves)
+                if (enemy.r !== -1 && playerMoveCount % 2 === 0) {
+                    let distToPlayer = getAStarDistance(enemy.r, enemy.c, playerRow, playerCol, walls);
+
+                    // 1. Determine State
+                    if (powerupTimer > 0) {
+                        enemyState = "FLEE";
+                    } else if (distToPlayer <= 3 && distToPlayer !== 999) {
+                        enemyState = "CHASE";
+                    } else {
+                        enemyState = "PATROL";
+                    }
+
+                    // 2. Execute Behavior
+                    let nextR = enemy.r, nextC = enemy.c;
+                    let validNeighbors = [
+                        { r: enemy.r - 1, c: enemy.c }, { r: enemy.r + 1, c: enemy.c },
+                        { r: enemy.r, c: enemy.c - 1 }, { r: enemy.r, c: enemy.c + 1 }
+                    ].filter(n => n.r >= 0 && n.r <= 5 && n.c >= 0 && n.c <= 5 && !walls.some(w => w[0] === n.r && w[1] === n.c));
+
+                    if (enemyState === "CHASE") {
+                        let nextMove = getNextEnemyMove(enemy.r, enemy.c, playerRow, playerCol, walls);
+                        if (nextMove) { nextR = nextMove.r; nextC = nextMove.c; }
+                    }
+                    else if (enemyState === "FLEE") {
+                        // Pick the neighbor that maximizes distance to player
+                        let maxDist = -1;
+                        let bestMove = null;
+                        for (let n of validNeighbors) {
+                            let d = getAStarDistance(n.r, n.c, playerRow, playerCol, walls);
+                            if (d > maxDist && d !== 999) {
+                                maxDist = d;
+                                bestMove = n;
+                            }
+                        }
+                        if (bestMove) { nextR = bestMove.r; nextC = bestMove.c; }
+                    }
+                    else if (enemyState === "PATROL") {
+                        // Move to random valid neighbor
+                        if (validNeighbors.length > 0) {
+                            let randNode = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+                            nextR = randNode.r; nextC = randNode.c;
+                        }
+                    }
+
+                    enemy.r = nextR;
+                    enemy.c = nextC;
+                }
+            }
+
+            if (e.key === "Enter") check();
+
+            updatePlayer();
+        });
+
+        /* CHECK */
+        function check() {
+            if (playerRow === treasure[0] && playerCol === treasure[1]) {
+                clearInterval(timerInterval);
+                levelIndex++;
+
+                if (levelIndex >= levels.length) {
+                    showGamePopup("🏆 YOU WON!", true);
+                } else {
+                    score += 50;
+                    document.getElementById("score").innerText = score;
+                    showGamePopup("Yay! You found the treasure! 💎", false, false, true);
+                }
+            }
+            else {
+                score = Math.max(0, score - 10);
+                document.getElementById("score").innerText = score;
+                showGamePopup("❌ Wrong location! (-10 points)", false, true);
+            }
+        }
+
+        function showClue() {
+            showCluePopup();
+        }
+
+    </script>
+
+</body>
+
+</html>
