@@ -406,7 +406,7 @@
             }
         }
 
-        let levelIndex = 0, score = 100, lives = 2;
+        let levelIndex = 0, score = 100, lives = 5;
         let playerRow = 0, playerCol = 0;
         let timer = 30, timerInterval;
         let hintIndex = 0;
@@ -578,14 +578,7 @@
                 '<button onclick="submitAns()">Submit</button><button onclick="useHint()">💡 Hint</button>';
         }
 
-        function showCluePopup() {
-            let lvl = levels[levelIndex];
-            openPopup();
-            document.getElementById("popupTitle").style.display = "none";
-            document.getElementById("popupText").innerText = "📍 " + lvl.loc;
-            document.getElementById("popupInput").style.display = "none";
-            document.getElementById("popupBtns").innerHTML = '<button onclick="closePopup()">OK</button>';
-        }
+
 
         function showGamePopup(message, isEnd = false, isDanger = false, isNextLevel = false) {
             openPopup();
@@ -671,9 +664,39 @@
                 hintIndex++;
             }
             else {
-                document.getElementById("popupTitle").style.display = "none";
-                document.getElementById("popupText").innerText = "❌ No hints left! Keep trying.";
+                document.getElementById("popupTitle").style.display = "block";
+                document.getElementById("popupTitle").innerText = "No hints left!";
+                document.getElementById("popupText").innerText = "Do you want to reveal the clue and skip the question? (-1 Life)";
                 document.getElementById("popupInput").style.display = "none";
+                document.getElementById("popupBtns").innerHTML = `
+                    <button onclick="revealClue()">Yes</button>
+                    <button onclick="showQuestion(currentLevelData.q)">No</button>
+                `;
+            }
+        }
+
+        async function revealClue() {
+            if (lives > 0) {
+                lives--;
+                document.getElementById("lives").innerText = lives;
+                
+                try {
+                    let res = await fetch('/api/get_answer?index=' + levelIndex);
+                    let data = await res.json();
+                    if (data.answer) {
+                        openPopup();
+                        document.getElementById("popupTitle").style.display = "block";
+                        document.getElementById("popupTitle").innerText = "Answer Revealed";
+                        document.getElementById("popupText").innerText = "The answer is: " + data.answer + "\n\nLocation Clue: 📍 " + currentLevelData.loc;
+                        document.getElementById("popupInput").style.display = "none";
+                        document.getElementById("popupBtns").innerHTML = '<button onclick="closePopup()">Start Level</button>';
+                    }
+                } catch(e) { console.error(e); }
+                
+            } else {
+                document.getElementById("popupTitle").style.display = "block";
+                document.getElementById("popupTitle").innerText = "No Lives Left!";
+                document.getElementById("popupText").innerText = "You don't have enough lives to reveal the clue.";
                 document.getElementById("popupBtns").innerHTML = '<button onclick="showQuestion(currentLevelData.q)">Back</button>';
             }
         }

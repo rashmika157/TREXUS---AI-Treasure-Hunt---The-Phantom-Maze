@@ -98,6 +98,13 @@ def get_level():
     }
     return jsonify(safe_lvl)
 
+@app.route("/api/get_answer", methods=["GET"])
+def get_answer():
+    level_index = request.args.get('index', default=0, type=int)
+    if level_index >= len(LEVELS):
+        return jsonify({"error": "Level not found"})
+    return jsonify({"answer": LEVELS[level_index]["ans"]})
+
 @app.route("/api/verify_answer", methods=["POST"])
 def verify_answer():
     data = request.json
