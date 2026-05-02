@@ -413,6 +413,8 @@
         let walls = [];
         let enemy = { r: -1, c: -1 };
         let enemyState = "PATROL"; // PATROL, CHASE, FLEE
+        let enemy2 = { r: -1, c: -1 };
+        let enemy2State = "PATROL";
         let powerup = { r: -1, c: -1, active: false };
         let powerupTimer = 0;
         let playerMoveCount = 0;
@@ -497,7 +499,7 @@
                 }
             }
 
-            // Spawn Enemy far away from player
+            // Spawn Enemy 1 far away from player
             do {
                 enemy.r = Math.floor(Math.random() * 6);
                 enemy.c = Math.floor(Math.random() * 6);
@@ -507,6 +509,22 @@
                 walls.some(w => w[0] === enemy.r && w[1] === enemy.c) || // not in wall
                 (Math.abs(enemy.r - 0) + Math.abs(enemy.c - 0) < 3) // distance > 2 from player
             );
+
+            // Spawn Enemy 2 only on Level 5 (index 4)
+            enemy2.r = -1;
+            enemy2.c = -1;
+            if (levelIndex >= 4) {
+                do {
+                    enemy2.r = Math.floor(Math.random() * 6);
+                    enemy2.c = Math.floor(Math.random() * 6);
+                } while (
+                    (enemy2.r === 0 && enemy2.c === 0) ||
+                    (enemy2.r === treasure[0] && enemy2.c === treasure[1]) ||
+                    (enemy2.r === enemy.r && enemy2.c === enemy.c) ||
+                    walls.some(w => w[0] === enemy2.r && w[1] === enemy2.c) ||
+                    (Math.abs(enemy2.r - 0) + Math.abs(enemy2.c - 0) < 3)
+                );
+            }
 
             powerupTimer = 0;
             enemyState = "PATROL";
@@ -743,28 +761,31 @@
                 }
             }
 
-            // Draw enemy
-            if (enemy.r !== -1 && enemy.c !== -1) {
-                let enemyCell = document.getElementById(enemy.r + "-" + enemy.c);
-                if (enemyCell) {
-                    enemyCell.classList.add("enemy");
+            // Draw enemies
+            let activeEnemies = [{e: enemy, state: enemyState}];
+            if (levelIndex >= 4) activeEnemies.push({e: enemy2, state: enemy2State});
 
-                    if (enemyState === "FLEE") {
-                        enemyCell.innerText = "😱";
-                        enemyCell.style.background = "linear-gradient(135deg, #3498db, #2980b9)";
-                        enemyCell.style.boxShadow = "0 0 20px #3498db";
-                    } else if (enemyState === "CHASE") {
-                        enemyCell.innerText = "👹";
-                    } else {
-                        enemyCell.innerText = "👻";
+            activeEnemies.forEach(en => {
+                if (en.e.r !== -1 && en.e.c !== -1) {
+                    let enemyCell = document.getElementById(en.e.r + "-" + en.e.c);
+                    if (enemyCell) {
+                        enemyCell.classList.add("enemy");
+                        if (en.state === "FLEE") {
+                            enemyCell.innerText = "😱";
+                            enemyCell.style.background = "linear-gradient(135deg, #3498db, #2980b9)";
+                            enemyCell.style.boxShadow = "0 0 20px #3498db";
+                        } else if (en.state === "CHASE") {
+                            enemyCell.innerText = "👹";
+                        } else {
+                            enemyCell.innerText = "👻";
+                        }
+                        enemyCell.style.display = "inline-flex";
+                        enemyCell.style.justifyContent = "center";
+                        enemyCell.style.alignItems = "center";
+                        enemyCell.style.fontSize = "28px";
                     }
-
-                    enemyCell.style.display = "inline-flex";
-                    enemyCell.style.justifyContent = "center";
-                    enemyCell.style.alignItems = "center";
-                    enemyCell.style.fontSize = "28px";
                 }
-            }
+            });
 
             // Draw player
             let playerCell = document.getElementById(playerRow + "-" + playerCol);
@@ -785,44 +806,48 @@
                 showGamePopup("🏮 You got the Ghost Lantern! The Ghost is scared!", false, false);
             }
 
-            // Collision check: Enemy
-            if (playerRow === enemy.r && playerCol === enemy.c) {
-                if (enemyState === "FLEE") {
-                    score += 50;
-                    document.getElementById("score").innerText = score;
-                    showGamePopup("✨ You banished the Ghost Pirate! +50 points", false, false);
-                    enemy.r = -1; // Remove enemy from board
-                    enemy.c = -1;
-                } else {
-                    score = Math.max(0, score - 50);
-                    document.getElementById("score").innerText = score;
-                    playSound('ghost');
-                    showGamePopup("👻 The Ghost Pirate caught you! -50 points", false, true);
+            // Collision check: Enemies
+            for (let en of activeEnemies) {
+                if (en.e.r !== -1 && playerRow === en.e.r && playerCol === en.e.c) {
+                    if (en.state === "FLEE") {
+                        score += 50;
+                        document.getElementById("score").innerText = score;
+                        showGamePopup("✨ You banished the Ghost Pirate! +50 points", false, false);
+                        en.e.r = -1; // Remove enemy from board
+                        en.e.c = -1;
+                    } else {
+                        score = Math.max(0, score - 50);
+                        document.getElementById("score").innerText = score;
+                        playSound('ghost');
+                        showGamePopup("👻 The Ghost Pirate caught you! -50 points", false, true);
 
-                    // Respawn enemy far away
-                    do {
-                        enemy.r = Math.floor(Math.random() * 6);
-                        enemy.c = Math.floor(Math.random() * 6);
-                    } while (
-                        (enemy.r === playerRow && enemy.c === playerCol) ||
-                        (enemy.r === treasure[0] && enemy.c === treasure[1]) ||
-                        walls.some(w => w[0] === enemy.r && w[1] === enemy.c) ||
-                        (Math.abs(enemy.r - playerRow) + Math.abs(enemy.c - playerCol) < 3)
-                    );
+                        // Respawn enemy far away
+                        do {
+                            en.e.r = Math.floor(Math.random() * 6);
+                            en.e.c = Math.floor(Math.random() * 6);
+                        } while (
+                            (en.e.r === playerRow && en.e.c === playerCol) ||
+                            (en.e.r === treasure[0] && en.e.c === treasure[1]) ||
+                            walls.some(w => w[0] === en.e.r && w[1] === en.e.c) ||
+                            (Math.abs(en.e.r - playerRow) + Math.abs(en.e.c - playerCol) < 3)
+                        );
 
-                    // Redraw to place enemy at new location
-                    updatePlayer();
-                    return;
+                        // Redraw to place enemy at new location
+                        updatePlayer();
+                        return;
+                    }
                 }
             }
 
             let distTreasure = getAStarDistance(playerRow, playerCol, treasure[0], treasure[1], walls);
-            let distEnemy = enemy.r !== -1 ? getAStarDistance(playerRow, playerCol, enemy.r, enemy.c, walls) : 999;
+            let distEnemy1 = enemy.r !== -1 ? getAStarDistance(playerRow, playerCol, enemy.r, enemy.c, walls) : 999;
+            let distEnemy2 = enemy2.r !== -1 ? getAStarDistance(playerRow, playerCol, enemy2.r, enemy2.c, walls) : 999;
+            let minEnemyDist = Math.min(distEnemy1, distEnemy2);
 
             if (powerupTimer > 0) {
                 resultEl.innerText = `🏮 Power active! Ghost fleeing (${powerupTimer} steps left)`;
                 resultEl.style.color = "#ffeb3b";
-            } else if (distEnemy <= 2 && distEnemy !== 999) {
+            } else if (minEnemyDist <= 2 && minEnemyDist !== 999) {
                 resultEl.innerText = "⚠️ The Ghost is chasing!";
                 resultEl.style.color = "#ff4444";
             } else if (distTreasure <= 3 && distTreasure !== 999) {
@@ -1002,52 +1027,62 @@
                 }
 
                 // Ghost FSM Brain (acts every 2 moves)
-                if (enemy.r !== -1 && playerMoveCount % 2 === 0) {
-                    let distToPlayer = getAStarDistance(enemy.r, enemy.c, playerRow, playerCol, walls);
+                if (playerMoveCount % 2 === 0) {
+                    let ghostsToMove = [
+                        {e: enemy, stateObj: () => enemyState, setState: (s) => enemyState = s},
+                        {e: enemy2, stateObj: () => enemy2State, setState: (s) => enemy2State = s}
+                    ];
 
-                    // 1. Determine State
-                    if (powerupTimer > 0) {
-                        enemyState = "FLEE";
-                    } else if (distToPlayer <= 3 && distToPlayer !== 999) {
-                        enemyState = "CHASE";
-                    } else {
-                        enemyState = "PATROL";
-                    }
+                    for (let g of ghostsToMove) {
+                        if (g.e.r === -1 || g.e.c === -1) continue;
+                        
+                        let distToPlayer = getAStarDistance(g.e.r, g.e.c, playerRow, playerCol, walls);
 
-                    // 2. Execute Behavior
-                    let nextR = enemy.r, nextC = enemy.c;
-                    let validNeighbors = [
-                        { r: enemy.r - 1, c: enemy.c }, { r: enemy.r + 1, c: enemy.c },
-                        { r: enemy.r, c: enemy.c - 1 }, { r: enemy.r, c: enemy.c + 1 }
-                    ].filter(n => n.r >= 0 && n.r <= 5 && n.c >= 0 && n.c <= 5 && !walls.some(w => w[0] === n.r && w[1] === n.c));
+                        // 1. Determine State
+                        if (powerupTimer > 0) {
+                            g.setState("FLEE");
+                        } else if (distToPlayer <= 3 && distToPlayer !== 999) {
+                            g.setState("CHASE");
+                        } else {
+                            g.setState("PATROL");
+                        }
 
-                    if (enemyState === "CHASE") {
-                        let nextMove = getNextEnemyMove(enemy.r, enemy.c, playerRow, playerCol, walls);
-                        if (nextMove) { nextR = nextMove.r; nextC = nextMove.c; }
-                    }
-                    else if (enemyState === "FLEE") {
-                        // Pick the neighbor that maximizes distance to player
-                        let maxDist = -1;
-                        let bestMove = null;
-                        for (let n of validNeighbors) {
-                            let d = getAStarDistance(n.r, n.c, playerRow, playerCol, walls);
-                            if (d > maxDist && d !== 999) {
-                                maxDist = d;
-                                bestMove = n;
+                        // 2. Execute Behavior
+                        let nextR = g.e.r, nextC = g.e.c;
+                        let validNeighbors = [
+                            { r: g.e.r - 1, c: g.e.c }, { r: g.e.r + 1, c: g.e.c },
+                            { r: g.e.r, c: g.e.c - 1 }, { r: g.e.r, c: g.e.c + 1 }
+                        ].filter(n => n.r >= 0 && n.r <= 5 && n.c >= 0 && n.c <= 5 && !walls.some(w => w[0] === n.r && w[1] === n.c));
+
+                        let currentState = g.stateObj();
+                        if (currentState === "CHASE") {
+                            let nextMove = getNextEnemyMove(g.e.r, g.e.c, playerRow, playerCol, walls);
+                            if (nextMove) { nextR = nextMove.r; nextC = nextMove.c; }
+                        }
+                        else if (currentState === "FLEE") {
+                            // Pick the neighbor that maximizes distance to player
+                            let maxDist = -1;
+                            let bestMove = null;
+                            for (let n of validNeighbors) {
+                                let d = getAStarDistance(n.r, n.c, playerRow, playerCol, walls);
+                                if (d > maxDist && d !== 999) {
+                                    maxDist = d;
+                                    bestMove = n;
+                                }
+                            }
+                            if (bestMove) { nextR = bestMove.r; nextC = bestMove.c; }
+                        }
+                        else if (currentState === "PATROL") {
+                            // Move to random valid neighbor
+                            if (validNeighbors.length > 0) {
+                                let randNode = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+                                nextR = randNode.r; nextC = randNode.c;
                             }
                         }
-                        if (bestMove) { nextR = bestMove.r; nextC = bestMove.c; }
-                    }
-                    else if (enemyState === "PATROL") {
-                        // Move to random valid neighbor
-                        if (validNeighbors.length > 0) {
-                            let randNode = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
-                            nextR = randNode.r; nextC = randNode.c;
-                        }
-                    }
 
-                    enemy.r = nextR;
-                    enemy.c = nextC;
+                        g.e.r = nextR;
+                        g.e.c = nextC;
+                    }
                 }
             }
 
