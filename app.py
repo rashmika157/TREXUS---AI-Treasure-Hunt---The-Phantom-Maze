@@ -6,7 +6,9 @@ app = Flask(__name__)
 
 DB_FILE = 'leaderboard.db'
 
-LEVELS = [
+import random
+
+ALL_QUESTIONS = [
     {
         "q": "Learns from data",
         "ans": "machine learning",
@@ -46,6 +48,126 @@ LEVELS = [
         "loc": "3+0=row,2+1=col",
         "pos": [3, 3],
         "hints": ["Used in self-driving cars", "Image processing", "Computer ___"]
+    },
+    {
+        "q": "Understands human language",
+        "ans": "natural language processing",
+        "altAns": ["nlp"],
+        "loc": "0+0=row,0+1=col",
+        "pos": [0, 1],
+        "hints": ["Text analysis", "Siri uses this", "N L P"]
+    },
+    {
+        "q": "Learns by trial and error",
+        "ans": "reinforcement learning",
+        "altAns": ["rl", "reinforcement"],
+        "loc": "5-1=row,2+3=col",
+        "pos": [4, 5],
+        "hints": ["Rewards and punishments", "Used in game playing AI", "AlphaGo uses this"]
+    },
+    {
+        "q": "Grouping unlabelled data",
+        "ans": "clustering",
+        "altAns": ["cluster analysis", "clusters"],
+        "loc": "1+1=row,4-4=col",
+        "pos": [2, 0],
+        "hints": ["K-Means is an example", "Finding hidden patterns", "Grouping similar things"]
+    },
+    {
+        "q": "Learning from labelled data",
+        "ans": "supervised learning",
+        "altAns": ["supervised", "supervised machine learning"],
+        "loc": "5-4=row,3+0=col",
+        "pos": [1, 3],
+        "hints": ["Needs a teacher", "Data has tags/labels", "Predicting known outcomes"]
+    },
+    {
+        "q": "Learning from unlabelled data",
+        "ans": "unsupervised learning",
+        "altAns": ["unsupervised", "unsupervised machine learning"],
+        "loc": "0+5=row,2+0=col",
+        "pos": [5, 2],
+        "hints": ["No teacher needed", "Finding hidden structures", "Opposite of supervised"]
+    },
+    {
+        "q": "Network with many layers",
+        "ans": "deep learning",
+        "altAns": ["dl", "deep neural network"],
+        "loc": "3-2=row,4+1=col",
+        "pos": [1, 5],
+        "hints": ["Subset of ML", "Uses deep neural networks", "Deep ___"]
+    },
+    {
+        "q": "AI creating images or text",
+        "ans": "generative ai",
+        "altAns": ["gen ai", "generative artificial intelligence"],
+        "loc": "2+2=row,0+0=col",
+        "pos": [4, 0],
+        "hints": ["Creates new content", "Midjourney is an example", "Generative ___"]
+    },
+    {
+        "q": "Identifying people in photos",
+        "ans": "facial recognition",
+        "altAns": ["face recognition", "face detection"],
+        "loc": "1+2=row,5-1=col",
+        "pos": [3, 4],
+        "hints": ["Unlocks your phone", "Biometric AI", "Facial ___"]
+    },
+    {
+        "q": "Predicting numerical values",
+        "ans": "regression",
+        "altAns": ["linear regression", "regression analysis"],
+        "loc": "5-5=row,1+2=col",
+        "pos": [0, 3],
+        "hints": ["Predicting house prices", "Statistical ML method", "Linear ___"]
+    },
+    {
+        "q": "AI playing board games",
+        "ans": "game ai",
+        "altAns": ["game artificial intelligence", "gaming ai"],
+        "loc": "4-2=row,4-2=col",
+        "pos": [2, 2],
+        "hints": ["Used in chess", "NPC behavior", "Game ___"]
+    },
+    {
+        "q": "Converting text to audio",
+        "ans": "text to speech",
+        "altAns": ["tts", "text-to-speech"],
+        "loc": "3+2=row,1+0=col",
+        "pos": [5, 1],
+        "hints": ["Voice assistants use this", "Reading text aloud", "T T S"]
+    },
+    {
+        "q": "Algorithm for optimization",
+        "ans": "gradient descent",
+        "altAns": ["stochastic gradient descent", "sgd"],
+        "loc": "1+0=row,1+1=col",
+        "pos": [1, 2],
+        "hints": ["Finding the minimum", "Used in training neural nets", "Moving down the slope"]
+    },
+    {
+        "q": "Categorizing items",
+        "ans": "classification",
+        "altAns": ["classifier", "classifying"],
+        "loc": "4-1=row,5-2=col",
+        "pos": [3, 3],
+        "hints": ["Spam or not spam", "Sorting into buckets", "Supervised ML task"]
+    },
+    {
+        "q": "Famous AI test",
+        "ans": "turing test",
+        "altAns": ["the turing test"],
+        "loc": "0+2=row,0+4=col",
+        "pos": [2, 4],
+        "hints": ["Proposed by Alan Turing", "Imitation game", "Testing machine intelligence"]
+    },
+    {
+        "q": "Data representing text",
+        "ans": "word embedding",
+        "altAns": ["embeddings", "word2vec", "embedding"],
+        "loc": "4-4=row,4-4=col",
+        "pos": [0, 0],
+        "hints": ["Vectors for words", "Word2Vec is one", "Captures semantic meaning"]
     }
 ]
 
@@ -81,40 +203,47 @@ def levenshtein_distance(s1, s2):
 def home():
     return render_template("index.html")
 
+@app.route("/api/start_game", methods=["GET"])
+def start_game():
+    count = request.args.get('count', default=5, type=int)
+    if count > len(ALL_QUESTIONS):
+        count = len(ALL_QUESTIONS)
+    level_ids = random.sample(range(len(ALL_QUESTIONS)), count)
+    return jsonify({"level_ids": level_ids})
+
 @app.route("/api/get_level", methods=["GET"])
 def get_level():
-    level_index = request.args.get('index', default=0, type=int)
-    if level_index >= len(LEVELS):
+    level_id = request.args.get('id', default=0, type=int)
+    if level_id >= len(ALL_QUESTIONS) or level_id < 0:
         return jsonify({"error": "Level not found", "completed": True})
     
-    lvl = LEVELS[level_index]
+    lvl = ALL_QUESTIONS[level_id]
     # Do not send the answers to the frontend!
     safe_lvl = {
         "q": lvl["q"],
         "loc": lvl["loc"],
         "pos": lvl["pos"],
-        "hints": lvl["hints"],
-        "total_levels": len(LEVELS)
+        "hints": lvl["hints"]
     }
     return jsonify(safe_lvl)
 
 @app.route("/api/get_answer", methods=["GET"])
 def get_answer():
-    level_index = request.args.get('index', default=0, type=int)
-    if level_index >= len(LEVELS):
+    level_id = request.args.get('id', default=0, type=int)
+    if level_id >= len(ALL_QUESTIONS) or level_id < 0:
         return jsonify({"error": "Level not found"})
-    return jsonify({"answer": LEVELS[level_index]["ans"]})
+    return jsonify({"answer": ALL_QUESTIONS[level_id]["ans"]})
 
 @app.route("/api/verify_answer", methods=["POST"])
 def verify_answer():
     data = request.json
-    level_index = data.get('level_index', 0)
+    level_id = data.get('level_id', 0)
     user_input = data.get('answer', '').lower().strip()
     
-    if level_index >= len(LEVELS):
+    if level_id >= len(ALL_QUESTIONS) or level_id < 0:
         return jsonify({"correct": False, "error": "Invalid level"})
         
-    lvl = LEVELS[level_index]
+    lvl = ALL_QUESTIONS[level_id]
     is_correct = False
     
     if user_input == lvl["ans"] or (user_input in lvl["altAns"]):

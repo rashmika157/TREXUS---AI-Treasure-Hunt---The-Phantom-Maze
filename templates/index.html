@@ -313,7 +313,7 @@
 
         <div class="top-bar">
             <h3>⭐ <span id="score">100</span></h3>
-            <h3>❤️ <span id="lives">2</span></h3>
+            <h3>❤️ <span id="lives">5</span></h3>
             <h3 id="timerBox">⏱️ <span id="timer">30</span></h3>
             <button id="soundBtn" onclick="toggleSound()" style="padding: 5px 10px; font-size: 0.9em; margin-left: 10px;">🔊 ON</button>
         </div>
@@ -420,6 +420,9 @@
         let playerMoveCount = 0;
         let currentLevelData = null;
         let treasure;
+        
+        let gameLevelIds = [];
+        let totalGameLevels = 5;
 
         // Fetch Leaderboard on load
         window.onload = async function() {
@@ -438,7 +441,13 @@
         };
 
         /* START */
-        function startGame() {
+        async function startGame() {
+            try {
+                let res = await fetch('/api/start_game?count=' + totalGameLevels);
+                let data = await res.json();
+                gameLevelIds = data.level_ids;
+            } catch(e) { console.error("Error starting game", e); }
+            
             document.getElementById("home").style.display = "none";
             document.getElementById("game").style.display = "block";
             document.getElementById("globalHomeBtn").style.display = "block";
@@ -459,12 +468,18 @@
 
         /* LEVEL */
         async function loadLevel() {
+            if (levelIndex >= gameLevelIds.length) {
+                showGamePopup("🏆 YOU WON! All levels completed.", true);
+                return;
+            }
+            let currentId = gameLevelIds[levelIndex];
+            
             try {
-                let response = await fetch('/api/get_level?index=' + levelIndex);
+                let response = await fetch('/api/get_level?id=' + currentId);
                 let data = await response.json();
                 
                 if (data.completed || data.error) {
-                    showGameOverPopup("🏆 YOU WON! All levels completed.");
+                    showGamePopup("🏆 YOU WON! All levels completed.", true);
                     return;
                 }
                 
@@ -575,7 +590,8 @@
             document.getElementById("popupBox").classList.remove("popup-danger");
 
             document.getElementById("popupBtns").innerHTML =
-                '<button onclick="submitAns()">Submit</button><button onclick="useHint()">💡 Hint</button>';
+                '<button onclick="submitAns()">Submit</button>' + 
+                '<button onclick="useHint()">💡 Hint</button>';
         }
 
 
@@ -625,12 +641,13 @@
         /* ANSWER (NLP Fuzzy Matching from Backend) */
         async function submitAns() {
             let userInput = document.getElementById("popupInput").value.toLowerCase().trim();
+            let currentId = gameLevelIds[levelIndex];
             
             try {
                 let response = await fetch('/api/verify_answer', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({level_index: levelIndex, answer: userInput})
+                    body: JSON.stringify({level_id: currentId, answer: userInput})
                 });
                 let data = await response.json();
                 
@@ -663,30 +680,28 @@
                 document.getElementById("popupText").innerText = "💡 " + currentLevelData.hints[hintIndex];
                 hintIndex++;
             }
-            else {
-                document.getElementById("popupTitle").style.display = "block";
-                document.getElementById("popupTitle").innerText = "No hints left!";
-                document.getElementById("popupText").innerText = "Do you want to reveal the clue and skip the question? (-1 Life)";
-                document.getElementById("popupInput").style.display = "none";
-                document.getElementById("popupBtns").innerHTML = `
-                    <button onclick="revealClue()">Yes</button>
-                    <button onclick="showQuestion(currentLevelData.q)">No</button>
-                `;
+            
+            if (hintIndex >= 3) {
+                // All hints are exhausted, replace the Hint button with the Skip button
+                document.getElementById("popupBtns").innerHTML =
+                    '<button onclick="submitAns()">Submit</button>' + 
+                    '<button onclick="skipQuestion()" style="background: linear-gradient(135deg, #ff4444, #990000); color: white;">⏭️ Skip (-1 Life)</button>';
             }
         }
 
-        async function revealClue() {
+        async function skipQuestion() {
             if (lives > 0) {
                 lives--;
                 document.getElementById("lives").innerText = lives;
                 
                 try {
-                    let res = await fetch('/api/get_answer?index=' + levelIndex);
+                    let currentId = gameLevelIds[levelIndex];
+                    let res = await fetch('/api/get_answer?id=' + currentId);
                     let data = await res.json();
                     if (data.answer) {
                         openPopup();
                         document.getElementById("popupTitle").style.display = "block";
-                        document.getElementById("popupTitle").innerText = "Answer Revealed";
+                        document.getElementById("popupTitle").innerText = "Question Skipped";
                         document.getElementById("popupText").innerText = "The answer is: " + data.answer + "\n\nLocation Clue: 📍 " + currentLevelData.loc;
                         document.getElementById("popupInput").style.display = "none";
                         document.getElementById("popupBtns").innerHTML = '<button onclick="closePopup()">Start Level</button>';
@@ -696,7 +711,7 @@
             } else {
                 document.getElementById("popupTitle").style.display = "block";
                 document.getElementById("popupTitle").innerText = "No Lives Left!";
-                document.getElementById("popupText").innerText = "You don't have enough lives to reveal the clue.";
+                document.getElementById("popupText").innerText = "You don't have enough lives to skip this question.";
                 document.getElementById("popupBtns").innerHTML = '<button onclick="showQuestion(currentLevelData.q)">Back</button>';
             }
         }
@@ -1122,7 +1137,7 @@
 
                 playSound('treasure');
 
-                if (levelIndex >= currentLevelData.total_levels) {
+                if (levelIndex >= totalGameLevels) {
                     showGamePopup("🏆 YOU WON!", true);
                 } else {
                     score += 50;
